@@ -69,50 +69,107 @@ st.divider()
 st.subheader("🎮 Coba Prediksi Kelulusan")
 st.write("Masukkan metrik rutinitas harian mahasiswa di bawah ini:")
 
+st.subheader("Prediksi Kelulusan Mahasiswa")
+
 with st.form("form_prediksi"):
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        study = st.number_input("Lama Belajar (Jam/Hari)", min_value=0.0, max_value=24.0, value=5.0)
-        gaming = st.number_input("Lama Main Game (Jam/Hari)", min_value=0.0, max_value=24.0, value=4.0)
-        genre = st.selectbox("Genre Game Favorit", ['FPS', 'RPG', 'Casual'])
-        attendance = st.number_input("Tingkat Kehadiran (%)", min_value=0.0, max_value=100.0, value=80.0)
-        
-    with c2:
-        sleep = st.number_input("Lama Tidur (Jam/Hari)", min_value=0.0, max_value=24.0, value=6.5)
-        device = st.number_input("Lama Pegang Gadget Total (Jam/Hari)", min_value=0.0, max_value=24.0, value=7.0)
-        sosial = st.number_input("Waktu Sosialisasi/Nongkrong (Jam/Hari)", min_value=0.0, max_value=24.0, value=2.0)
-        
-    submit = st.form_submit_button("Jalankan Prediksi")
+
+    study = st.text_input("Lama Belajar (Jam/Hari)", "5")
+    gaming = st.text_input("Lama Main Game (Jam/Hari)", "4")
+    sleep = st.text_input("Lama Tidur (Jam/Hari)", "6")
+    attendance = st.text_input("Kehadiran (%)", "80")
+    device = st.text_input("Penggunaan Gadget (Jam/Hari)", "7")
+    sosial = st.text_input("Waktu Sosialisasi (Jam/Hari)", "2")
+    genre = st.text_input("Genre Game (FPS/RPG/Casual)", "FPS")
+
+    submit = st.form_submit_button("Prediksi")
 
 if submit:
-    if (study + gaming + sleep + sosial) > 24:
-        st.error("Total waktu belajar, nge-game, nongkrong, dan tidur tidak boleh lebih dari 24 jam.")
-    elif device < gaming:
-        st.error("Total waktu pegang gadget tidak boleh lebih kecil dari waktu main game.")
-    else:
-        if study > 7 and sleep <= 6:
-            stress = 'High'
-        elif gaming > 5:
-            stress = 'Low'
-        else:
-            stress = 'Medium'
 
-        addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
-        
-        st.info(f"Sistem mengkalkulasi otomatis: Skor Kecanduan = {addiction:.2f} | Tingkat Stres = {stress}")
-        
-        input_df = pd.DataFrame([[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]], 
-                                columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
-        
-        input_df['stress_level'] = le_stress.transform(input_df['stress_level'])
-        input_df['gaming_genre'] = le_genre.transform(input_df['gaming_genre'])
-        input_scaled = scaler.transform(input_df)
-        
-        hasil_encoded = model.predict(input_scaled)
-        hasil = le_target.inverse_transform(hasil_encoded)[0]
-        
-        if hasil == "Lulus":
-            st.success(f"Hasil Prediksi AI: Mahasiswa berpotensi LULUS")
-        else:
-            st.error(f"Hasil Prediksi AI: Mahasiswa berpotensi TIDAK LULUS")
+    try:
+        study = float(study)
+        gaming = float(gaming)
+        sleep = float(sleep)
+        attendance = float(attendance)
+        device = float(device)
+        sosial = float(sosial)
+    except ValueError:
+        st.error("Semua input angka harus berupa angka.")
+        st.stop()
+
+    genre = genre.strip().title()
+
+    if genre not in ["FPS", "RPG", "Casual"]:
+        st.error("Genre hanya boleh FPS, RPG, atau Casual.")
+        st.stop()
+
+    if study < 0 or study > 24:
+        st.error("Jam belajar harus antara 0-24.")
+        st.stop()
+
+    if gaming < 0 or gaming > 24:
+        st.error("Jam bermain harus antara 0-24.")
+        st.stop()
+
+    if sleep < 0 or sleep > 24:
+        st.error("Jam tidur harus antara 0-24.")
+        st.stop()
+
+    if device < 0 or device > 24:
+        st.error("Jam penggunaan gadget harus antara 0-24.")
+        st.stop()
+
+    if sosial < 0 or sosial > 24:
+        st.error("Jam sosialisasi harus antara 0-24.")
+        st.stop()
+
+    if attendance < 0 or attendance > 100:
+        st.error("Kehadiran harus antara 0-100%.")
+        st.stop()
+
+    if study + gaming + sleep + sosial > 24:
+        st.error("Total jam belajar, bermain, tidur, dan sosialisasi tidak boleh lebih dari 24 jam.")
+        st.stop()
+
+    if device < gaming:
+        st.error("Jam penggunaan gadget tidak boleh lebih kecil dari jam bermain game.")
+        st.stop()
+
+    if study > 7 and sleep <= 6:
+        stress = "High"
+    elif gaming > 5:
+        stress = "Low"
+    else:
+        stress = "Medium"
+
+    addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
+
+    st.info(f"Skor Kecanduan : {addiction:.2f}")
+    st.info(f"Tingkat Stress : {stress}")
+
+    input_df = pd.DataFrame(
+        [[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]],
+        columns=[
+            "study_hours",
+            "gaming_hours",
+            "sleep_hours",
+            "attendance",
+            "device_usage",
+            "social_activity",
+            "gaming_genre",
+            "addiction_score",
+            "stress_level",
+        ],
+    )
+
+    input_df["stress_level"] = le_stress.transform(input_df["stress_level"])
+    input_df["gaming_genre"] = le_genre.transform(input_df["gaming_genre"])
+
+    input_scaled = scaler.transform(input_df)
+
+    hasil_encoded = model.predict(input_scaled)
+    hasil = le_target.inverse_transform(hasil_encoded)[0]
+
+    if hasil == "Lulus":
+        st.success("Hasil Prediksi : Mahasiswa Berpotensi LULUS")
+    else:
+        st.error("Hasil Prediksi : Mahasiswa Berpotensi TIDAK LULUS")
