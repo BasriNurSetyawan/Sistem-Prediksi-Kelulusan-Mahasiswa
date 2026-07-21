@@ -85,60 +85,65 @@ if menu == "Beranda & Prediksi":
             else:
                 st.error("Hasil Prediksi: Mahasiswa ini berisiko TIDAK LULUS.")
                 
-                # --- SIMULASI PERBAIKAN OTOMATIS ---
+                # --- SIMULASI PERBAIKAN OTOMATIS BERDASARKAN KETENTUAN BARU ---
                 st.subheader("Simulasi Perbaikan Otomatis")
-                st.write("Berikut adalah rekomendasi penyesuaian agar status akademik berubah menjadi Lulus:")
+                st.write("Berikut adalah rekomendasi penyesuaian berdasarkan batas standar (Belajar min. 2 jam, Tidur min. 8 jam, Main Game maks. 6 jam, Gadget maks. 10 jam):")
                 
                 sim_study = study
                 sim_gaming = gaming
                 sim_device = device
+                sim_sleep = sleep
                 sim_attendance = attendance
                 sim_hasil = hasil
                 
-                tambah_belajar = 0.0
-                kurang_gaming = 0.0
-                tambah_kehadiran = 0.0
+                rekomendasi_list = []
                 
-                while sim_hasil == "Tidak Lulus" and (tambah_belajar + kurang_gaming + tambah_kehadiran) < 30:
-                    if sim_attendance < 75.0:
-                        sim_attendance = min(sim_attendance + 10.0, 85.0)
-                        tambah_kehadiran += 10.0
-                    elif sim_study < 7.0:
-                        sim_study += 0.5
-                        tambah_belajar += 0.5
-                    elif sim_gaming > 2.0:
-                        sim_gaming -= 0.5
-                        sim_device = max(sim_device - 0.5, sim_gaming)
-                        kurang_gaming += 0.5
-                    else:
-                        break
-                        
-                    if sim_study > 7 and sleep <= 6:
-                        sim_stress = 'High'
-                    elif sim_gaming > 5:
-                        sim_stress = 'Low'
-                    else:
-                        sim_stress = 'Medium'
-                        
-                    sim_addiction = -0.0024 + (1.4820 * sim_gaming) + (0.5101 * sim_device)
-                    sim_df = pd.DataFrame([[sim_study, sim_gaming, sleep, sim_attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
-                                            columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
-                    sim_df['stress_level'] = le_stress.transform(sim_df['stress_level'])
-                    sim_df['gaming_genre'] = le_genre.transform(sim_df['gaming_genre'])
-                    sim_scaled = scaler.transform(sim_df)
-                    sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
+                # Cek dan sesuaikan berdasarkan ketentuan user
+                if sim_study < 2.0:
+                    selisih = 2.0 - sim_study
+                    sim_study = 2.0
+                    rekomendasi_list.append(f"- Tambah jam belajar minimal menjadi **2 jam/hari** (butuh +{selisih} jam)")
+                
+                if sim_sleep < 8.0:
+                    selisih = 8.0 - sim_sleep
+                    sim_sleep = 8.0
+                    rekomendasi_list.append(f"- Tingkatkan waktu tidur minimal menjadi **8 jam/hari** (butuh +{selisih} jam)")
+                
+                if sim_gaming > 6.0:
+                    selisih = sim_gaming - 6.0
+                    sim_gaming = 6.0
+                    rekomendasi_list.append(f"- Kurangi durasi main game maksimal menjadi **6 jam/hari** (turun -{selisih} jam)")
+                
+                if sim_device > 10.0:
+                    selisih = sim_device - 10.0
+                    sim_device = 10.0
+                    rekomendasi_list.append(f"- Batasi penggunaan gadget maksimal menjadi **10 jam/hari** (turun -{selisih} jam)")
+                
+                if sim_attendance < 75.0:
+                    sim_attendance = 75.0
+                    rekomendasi_list.append("- Tingkatkan kehadiran kuliah minimal menjadi **75%**")
 
-                if sim_hasil == "Lulus":
-                    pesan_saran = "Rekomendasi penyesuaian dari sistem:\n"
-                    if tambah_kehadiran > 0:
-                        pesan_saran += f"- Tingkatkan kehadiran kuliah sebesar +{tambah_kehadiran}% (menjadi {sim_attendance}%)\n"
-                    if tambah_belajar > 0:
-                        pesan_saran += f"- Tambah jam belajar harian sebanyak +{tambah_belajar} jam (menjadi {sim_study} jam/hari)\n"
-                    if kurang_gaming > 0:
-                        pesan_saran += f"- Kurangi durasi main game sebanyak -{kurang_gaming} jam (menjadi {sim_gaming} jam/hari)\n"
-                    st.warning(pesan_saran)
+                # Validasi ulang dengan model AI setelah penyesuaian aturan
+                if sim_study > 7 and sim_sleep <= 6:
+                    sim_stress = 'High'
+                elif sim_gaming > 5:
+                    sim_stress = 'Low'
                 else:
-                    st.info("Kombinasi kebiasaan saat ini terlalu berisiko. Mahasiswa perlu meningkatkan kehadiran kuliah secara drastis dan merombak total manajemen waktu harian.")
+                    sim_stress = 'Medium'
+                    
+                sim_addiction = -0.0024 + (1.4820 * sim_gaming) + (0.5101 * sim_device)
+                sim_df = pd.DataFrame([[sim_study, sim_gaming, sim_sleep, sim_attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
+                                        columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
+                sim_df['stress_level'] = le_stress.transform(sim_df['stress_level'])
+                sim_df['gaming_genre'] = le_genre.transform(sim_df['gaming_genre'])
+                sim_scaled = scaler.transform(sim_df)
+                sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
+
+                if rekomendasi_list:
+                    teks_rekomendasi = "Rekomendasi penyesuaian kebiasaan:\n" + "\n".join(rekomendasi_list)
+                    st.warning(teks_rekomendasi)
+                else:
+                    st.info("Kebiasaan harian sudah sesuai batas ketentuan, namun kombinasi variabel lain masih mempengaruhi hasil prediksinya.")
 
 # ==========================================
 # HALAMAN 2: INFORMASI & METODOLOGI
