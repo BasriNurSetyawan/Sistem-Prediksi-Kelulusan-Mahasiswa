@@ -66,7 +66,7 @@ st.bar_chart(df_grafik_cm)
 
 st.divider()
 
-st.subheader("🎮 Coba Prediksi Kelulusan")
+st.subheader("Coba Prediksi Kelulusan")
 st.write("Masukkan metrik rutinitas harian mahasiswa di bawah ini:")
 
 st.subheader("Prediksi Kelulusan Mahasiswa")
