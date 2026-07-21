@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
 st.set_page_config(page_title="Sistem Prediksi Kelulusan Mahasiswa", layout="wide")
@@ -17,14 +17,16 @@ def load_assets():
 
 model, scaler, le_stress, le_genre, le_target = load_assets()
 
+st.sidebar.title("Menu Navigasi")
 menu = st.sidebar.selectbox("Pilih Halaman:", [
     "Beranda & Prediksi", 
     "Informasi & Metodologi", 
     "Saran Penggunaan Gadget"
 ])
 
+
 if menu == "Beranda & Prediksi":
-    st.title("🎓 Sistem Prediksi Kelulusan Mahasiswa Berbasis AI")
+    st.title("Sistem Prediksi Kelulusan Mahasiswa")
     st.write("Silakan masukkan data kebiasaan harian mahasiswa pada formulir di bawah ini untuk melihat estimasi status kelulusannya.")
     
     with st.form("form_prediksi"):
@@ -33,9 +35,7 @@ if menu == "Beranda & Prediksi":
         with c1:
             study = st.number_input("Lama Belajar (Jam/Hari)", min_value=0.0, max_value=24.0, value=5.0, step=0.5)
             gaming = st.number_input("Lama Main Game (Jam/Hari)", min_value=0.0, max_value=24.0, value=3.0, step=0.5)
-            
             genre = st.selectbox("Genre Game Favorit", ['FPS', 'RPG', 'Casual'])
-            
             attendance = st.number_input("Tingkat Kehadiran Kuliah (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
             
         with c2:
@@ -43,17 +43,14 @@ if menu == "Beranda & Prediksi":
             device = st.number_input("Total Penggunaan Gadget (Jam/Hari)", min_value=0.0, max_value=24.0, value=6.0, step=0.5)
             sosial = st.number_input("Waktu Sosialisasi / Nongkrong (Jam/Hari)", min_value=0.0, max_value=24.0, value=2.0, step=0.5)
             
-            kategori_aktivitas = st.selectbox("Fokus Utama Harian", ['Akademik & Tugas', 'Gaming Kompetition', 'Seimbang / Santai'])
-            
         submit = st.form_submit_button("Jalankan Prediksi AI")
 
     if submit:
         if (study + gaming + sleep + sosial) > 24:
-            st.error("⚠️ Total waktu harian (belajar, nge-game, tidur, nongkrong) tidak boleh lebih dari 24 jam!")
+            st.error("Total waktu harian (belajar, nge-game, tidur, nongkrong) tidak boleh lebih dari 24 jam!")
         elif device < gaming:
-            st.error("⚠️ Total penggunaan gadget tidak boleh lebih kecil dari durasi main game!")
+            st.error("Total penggunaan gadget tidak boleh lebih kecil dari durasi main game!")
         else:
-            # Logika otomatisasi background
             if study > 7 and sleep <= 6:
                 stress = 'High'
             elif gaming > 5:
@@ -63,7 +60,7 @@ if menu == "Beranda & Prediksi":
                 
             addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
             
-            st.info(f"🔍 Kalkulasi Otomatis Sistem — Skor Kecanduan: **{addiction:.2f}** | Tingkat Stres: **{stress}**")
+            st.info(f"Kalkulasi Otomatis Sistem — Skor Kecanduan: {addiction:.2f} | Tingkat Stres: {stress}")
             
             input_df = pd.DataFrame([[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]], 
                                     columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
@@ -76,27 +73,69 @@ if menu == "Beranda & Prediksi":
             hasil = le_target.inverse_transform(hasil_encoded)[0]
             
             st.divider()
+            
             if hasil == "Lulus":
-                st.success("🎉 **Hasil Prediksi:** Mahasiswa ini memiliki probabilitas tinggi untuk **LULUS** tepat waktu.")
+                st.success("Hasil Prediksi: Mahasiswa ini memiliki probabilitas tinggi untuk LULUS tepat waktu.")
             else:
-                st.error("🚨 **Hasil Prediksi:** Mahasiswa ini berisiko **TIDAK LULUS**. Perlu evaluasi manajemen waktu.")
+                st.error("Hasil Prediksi: Mahasiswa ini berisiko TIDAK LULUS.")
+                
+                st.subheader("Simulasi Perbaikan Otomatis")
+                st.write("Berikut adalah rekomendasi penyesuaian waktu agar status akademik berubah menjadi **Lulus**:")
+                
+                sim_study = study
+                sim_gaming = gaming
+                sim_device = device
+                sim_hasil = hasil
+                tambah_belajar = 0.0
+                kurang_gaming = 0.0
+                
+                while sim_hasil == "Tidak Lulus" and (tambah_belajar + kurang_gaming) < 10:
+                    if sim_study < 8.0:
+                        sim_study += 0.5
+                        tambah_belajar += 0.5
+                    elif sim_gaming > 1.0:
+                        sim_gaming -= 0.5
+                        sim_device = max(sim_device - 0.5, sim_gaming)
+                        kurang_gaming += 0.5
+                    else:
+                        break
+                        
+                    if sim_study > 7 and sleep <= 6:
+                        sim_stress = 'High'
+                    elif sim_gaming > 5:
+                        sim_stress = 'Low'
+                    else:
+                        sim_stress = 'Medium'
+                        
+                    sim_addiction = -0.0024 + (1.4820 * sim_gaming) + (0.5101 * sim_device)
+                    sim_df = pd.DataFrame([[sim_study, sim_gaming, sleep, attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
+                                            columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
+                    sim_df['stress_level'] = le_stress.transform(sim_df['stress_level'])
+                    sim_df['gaming_genre'] = le_genre.transform(sim_df['gaming_genre'])
+                    sim_scaled = scaler.transform(sim_df)
+                    sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
+
+                if sim_hasil == "Lulus":
+                    st.warning(f"""
+                    * Tambah jam belajar harian sebanyak **+{tambah_belajar} jam** (menjadi {sim_study} jam/hari).
+                    * Kurangi durasi main game sebanyak **-{kurang_gaming} jam** (menjadi {sim_gaming} jam/hari).
+                    """)
+                else:
+                    st.info("Disarankan untuk meningkatkan kehadiran kuliah secara signifikan dan menyeimbangkan waktu istirahat.")
 
 elif menu == "Informasi & Metodologi":
-    st.title("📚 Informasi Sistem & Metodologi Penelitian")
+    st.title("Informasi Sistem & Metodologi Penelitian")
     st.write("Halaman ini merangkum arsitektur di balik layar, algoritma yang digunakan, serta evaluasi performa model.")
     
+    st.markdown("---")
     st.subheader("Arsitektur Algoritma")
     st.info("""
-    * **Algoritma Klasifikasi:** Menggunakan *Random Forest Classifier* dengan total 100 *Decision Trees* (`n_estimators=100`).
-    * **Pra-pemrosesan Data:** 
-      * `StandardScaler` untuk normalisasi rentang angka (durasi jam, kehadiran).
-      * `LabelEncoder` untuk mengubah data kategori teks (Genre Game, Tingkat Stres) menjadi numerik.
-    * **Variabel Penentu Utama:** Berdasarkan uji *Feature Importance*, jam belajar memegang pengaruh terbesar (sekitar 43%), disusul oleh durasi gaming dan kualitas tidur.
+    * Algoritma Klasifikasi: Random Forest Classifier (n_estimators=100).
+    * Pra-pemrosesan Data: StandardScaler untuk normalisasi angka dan LabelEncoder untuk kategori teks.
+    * Variabel Penentu: Berdasarkan Feature Importance, jam belajar memegang pengaruh terbesar (sekitar 43%).
     """)
     
-    st.subheader("Evaluasi Performa Model (Testing Data)")
-    
-    # Load data evaluasi untuk ditampilkan metriknya
+    st.subheader("Evaluasi Performa Model")
     df = pd.read_csv('Gaming_Academic_Performance_updated.csv').dropna()
     df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x >= 60 else 'Tidak Lulus')
     X = df[['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level']].copy()
@@ -110,45 +149,25 @@ elif menu == "Informasi & Metodologi":
     
     acc = accuracy_score(y_test, y_pred)
     prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-    rec = recall_score(y_test, y_pred, average='weighted', zero_division=0)
     
-    m1, m2, m3 = st.columns(3)
+    m1, m2 = st.columns(2)
     m1.metric("Akurasi Model", f"{acc*100:.2f}%")
     m2.metric("Precision Score", f"{prec*100:.2f}%")
-    m3.metric("Recall Score", f"{rec*100:.2f}%")
     
-    st.write("**Visualisasi Confusion Matrix:**")
+    st.write("Visualisasi Confusion Matrix:")
     cm = confusion_matrix(y_test, y_pred)
-    label_0, label_1 = le_target.classes_[0], le_target.classes_[1]
-    df_cm = pd.DataFrame({
-        'Kategori Evaluasi': [
-            f'Aktual {label_0} (Prediksi {label_0})', f'Aktual {label_0} (Prediksi {label_1})',
-            f'Aktual {label_1} (Prediksi {label_0})', f'Aktual {label_1} (Prediksi {label_1})'
-        ],
-        'Jumlah Sampel': cm.flatten()
-    }).set_index('Kategori Evaluasi')
+    df_cm = pd.DataFrame({'Jumlah Sampel': cm.flatten()}).set_index(pd.Index(['True Neg', 'False Pos', 'False Neg', 'True Pos']))
     st.bar_chart(df_cm)
 
 elif menu == "Saran Penggunaan Gadget":
-    st.title("💡 Panduan & Saran Manajemen Gadget Bagi Mahasiswa")
-    st.write("Rekomendasi taktis berbasis analisis data untuk menyeimbangkan hobi gaming, penggunaan gadget, dan performa akademik.")
+    st.title("Panduan & Saran Manajemen Gadget Bagi Mahasiswa")
+    st.write("Rekomendasi taktis berbasis analisis data untuk menyeimbangkan hobi gaming dan performa akademik.")
     
-    col_a, col_b = st.columns(2)
-    
-    with col_a:
-        st.subheader("🛑 Risiko Durasi Gadget Berlebih")
-        st.warning("""
-        * **Penurunan Jam Tidur:** Gadget yang digunakan larut malam mengganggu produksi melatonin, berakibat pada penurunan fokus kuliah keesokan harinya.
-        * **Lonjakan Skor Kecanduan:** Berdasarkan rumus regresi sistem, setiap penambahan durasi gaming dan total layar secara linear mendongkrak tingkat risiko adiksi.
-        * **Distraksi Akademik:** Waktu belajar yang terpotong untuk aktivitas digital sekunder berbanding lurus dengan penurunan indeks prestasi.
-        """)
-        
-    with col_b:
-        st.subheader("✅ Tips & Solusi Bijak")
-        st.success("""
-        * **Terapkan Batasan Waktu (Time Boxing):** Alokasikan waktu maksimal gaming (misal: 2 jam sehari setelah tugas beres).
-        * **Prioritaskan Porsi Belajar:** Pastikan rasio jam belajar minimal 2 kali lipat dari durasi hiburan harian.
-        * **Jeda Istirahat Layar:** Gunakan metode *20-20-20* (tiap 20 menit menatap layar, istirahatkan mata sejenak melihat objek sejauh 20 kaki) untuk menjaga kesehatan mata.
-        """)
-        
-    st.info("📌 **Kesimpulan:** Main game atau menggunakan gadget tidak dilarang, asalkan diimbangi dengan tingkat kehadiran yang tinggi dan waktu istirahat yang cukup agar target kelulusan tetap tercapai.")
+    st.markdown("---")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Risiko Durasi Gadget Berlebih")
+        st.write("Penggunaan gadget dan gaming tanpa kontrol berpotensi menurunkan jam tidur, mengganggu fokus belajar, serta meningkatkan skor kecanduan.")
+    with c2:
+        st.subheader("Tips & Solusi Bijak")
+        st.write("Terapkan manajemen waktu harian, utamakan jam belajar minimal dua kali lipat dari durasi hiburan, dan jaga waktu istirahat yang cukup.")
