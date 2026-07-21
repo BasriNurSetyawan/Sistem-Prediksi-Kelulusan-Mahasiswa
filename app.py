@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
 st.set_page_config(page_title="Sistem Prediksi Kelulusan Mahasiswa", layout="wide")
@@ -87,63 +87,61 @@ if menu == "Beranda & Prediksi":
                 
                 # --- SIMULASI PERBAIKAN OTOMATIS BERDASARKAN KETENTUAN BARU ---
                 st.subheader("Simulasi Perbaikan Otomatis")
-                st.write("Berikut adalah rekomendasi penyesuaian berdasarkan batas standar (Belajar min. 2 jam, Tidur min. 8 jam, Main Game maks. 6 jam, Gadget maks. 10 jam):")
+                st.write("Berikut adalah rekomendasi penyesuaian (Belajar min. 2 jam, Tidur min. 8 jam, Main Game maks. 6 jam, Gadget maks. 10 jam, serta kontrol total 24 jam):")
                 
                 sim_study = study
                 sim_gaming = gaming
                 sim_device = device
                 sim_sleep = sleep
+                sim_sosial = sosial
                 sim_attendance = attendance
-                sim_hasil = hasil
                 
                 rekomendasi_list = []
                 
-                # Cek dan sesuaikan berdasarkan ketentuan user
+                # 1. Cek Ketentuan Batas Jam Belajar, Tidur, Game, Gadget, Kehadiran
                 if sim_study < 2.0:
                     selisih = 2.0 - sim_study
                     sim_study = 2.0
-                    rekomendasi_list.append(f"- Tambah jam belajar minimal menjadi **2 jam/hari** (butuh +{selisih} jam)")
+                    rekomendasi_list.append(f"Tambah jam belajar minimal menjadi **2 jam/hari** (butuh +{selisih:.1f} jam)")
                 
                 if sim_sleep < 8.0:
                     selisih = 8.0 - sim_sleep
                     sim_sleep = 8.0
-                    rekomendasi_list.append(f"- Tingkatkan waktu tidur minimal menjadi **8 jam/hari** (butuh +{selisih} jam)")
+                    rekomendasi_list.append(f"Tingkatkan waktu tidur minimal menjadi **8 jam/hari** (butuh +{selisih:.1f} jam)")
                 
                 if sim_gaming > 6.0:
                     selisih = sim_gaming - 6.0
                     sim_gaming = 6.0
-                    rekomendasi_list.append(f"- Kurangi durasi main game maksimal menjadi **6 jam/hari** (turun -{selisih} jam)")
+                    rekomendasi_list.append(f"Kurangi durasi main game maksimal menjadi **6 jam/hari** (turun -{selisih:.1f} jam)")
                 
                 if sim_device > 10.0:
                     selisih = sim_device - 10.0
                     sim_device = 10.0
-                    rekomendasi_list.append(f"- Batasi penggunaan gadget maksimal menjadi **10 jam/hari** (turun -{selisih} jam)")
+                    rekomendasi_list.append(f"Batasi penggunaan gadget maksimal menjadi **10 jam/hari** (turun -{selisih:.1f} jam)")
                 
                 if sim_attendance < 75.0:
                     sim_attendance = 75.0
-                    rekomendasi_list.append("- Tingkatkan kehadiran kuliah minimal menjadi **75%**")
+                    rekomendasi_list.append("Tingkatkan kehadiran kuliah minimal menjadi **75%**")
 
-                # Validasi ulang dengan model AI setelah penyesuaian aturan
-                if sim_study > 7 and sim_sleep <= 6:
-                    sim_stress = 'High'
-                elif sim_gaming > 5:
-                    sim_stress = 'Low'
-                else:
-                    sim_stress = 'Medium'
-                    
-                sim_addiction = -0.0024 + (1.4820 * sim_gaming) + (0.5101 * sim_device)
-                sim_df = pd.DataFrame([[sim_study, sim_gaming, sim_sleep, sim_attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
-                                        columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
-                sim_df['stress_level'] = le_stress.transform(sim_df['stress_level'])
-                sim_df['gaming_genre'] = le_genre.transform(sim_df['gaming_genre'])
-                sim_scaled = scaler.transform(sim_df)
-                sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
+                # 2. Validasi Kalkulasi Total Waktu Harian agar tidak > 24 jam
+                total_waktu_sim = sim_study + sim_gaming + sim_sleep + sim_sosial
+                if total_waktu_sim > 24.0:
+                    kelebihan = total_waktu_sim - 24.0
+                    if sim_sosial >= kelebihan:
+                        sim_sosial -= kelebihan
+                        rekomendasi_list.append(f"Kurangi waktu sosialisasi sebesar **-{kelebihan:.1f} jam** agar total waktu harian pas 24 jam")
+                    else:
+                        sim_sosial = 0.0
+                        rekomendasi_list.append("Seimbangkan ulang seluruh jadwal harian agar tidak melebihi batas waktu 24 jam sehari")
 
-                if rekomendasi_list:
-                    teks_rekomendasi = "Rekomendasi penyesuaian kebiasaan:\n" + "\n".join(rekomendasi_list)
+                # Batasi maksimal 3 rekomendasi utama agar ringkas
+                rekomendasi_final = rekomendasi_list[:3]
+
+                if rekomendasi_final:
+                    teks_rekomendasi = "Rekomendasi penyesuaian kebiasaan harian:\n" + "\n".join([f"- {item}" for item in rekomendasi_final])
                     st.warning(teks_rekomendasi)
                 else:
-                    st.info("Kebiasaan harian sudah sesuai batas ketentuan, namun kombinasi variabel lain masih mempengaruhi hasil prediksinya.")
+                    st.info("Kebiasaan harian sudah berada dalam batas ketentuan, namun kombinasi variabel lainnya masih perlu ditingkatkan.")
 
 # ==========================================
 # HALAMAN 2: INFORMASI & METODOLOGI
