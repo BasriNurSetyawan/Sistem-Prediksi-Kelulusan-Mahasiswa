@@ -12,11 +12,10 @@ def load_assets():
     model = joblib.load('model_akademik.pkl')
     scaler = joblib.load('scaler_akademik.pkl')
     le_stress = joblib.load('le_stress.pkl')
-    le_genre = joblib.load('le_genre.pkl')
     le_target = joblib.load('le_target.pkl')
-    return model, scaler, le_stress, le_genre, le_target
+    return model, scaler, le_stress, le_target
 
-model, scaler, le_stress, le_genre, le_target = load_assets()
+model, scaler, le_stress, le_target = load_assets()
 
 # --- NAVBAR DI KIRI ATAS (SIDEBAR) ---
 st.sidebar.title("Menu Navigasi")
@@ -37,14 +36,14 @@ if menu == "Beranda & Prediksi":
         c1, c2 = st.columns(2)
         
         with c1:
-            study = st.number_input("Lama Belajar (Jam/Hari)", min_value=0.0, max_value=24.0, value=0.0, step=0.5)
-            gaming = st.number_input("Lama Main Game (Jam/Hari)", min_value=0.0, max_value=24.0, value=8.0, step=0.5)
-            genre = st.selectbox("Genre Game Favorit", ['FPS', 'RPG', 'Casual'])
-            attendance = st.number_input("Tingkat Kehadiran Kuliah (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
+            study = st.number_input("Lama Belajar (Jam/Hari)", min_value=0.0, max_value=24.0, value=3.0, step=0.5)
+            gaming = st.number_input("Lama Main Game (Jam/Hari)", min_value=0.0, max_value=24.0, value=4.0, step=0.5)
+            assignment = st.number_input("Tingkat Kepatuhan Pengumpulan Tugas (%)", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
+            attendance = st.number_input("Tingkat Kehadiran Kuliah (%)", min_value=0.0, max_value=100.0, value=80.0, step=1.0)
             
         with c2:
-            sleep = st.number_input("Lama Tidur (Jam/Hari)", min_value=0.0, max_value=24.0, value=3.0, step=0.5)
-            device = st.number_input("Total Penggunaan Gadget (Jam/Hari)", min_value=0.0, max_value=24.0, value=14.0, step=0.5)
+            sleep = st.number_input("Lama Tidur (Jam/Hari)", min_value=0.0, max_value=24.0, value=6.0, step=0.5)
+            device = st.number_input("Total Penggunaan Gadget (Jam/Hari)", min_value=0.0, max_value=24.0, value=8.0, step=0.5)
             sosial = st.number_input("Waktu Sosialisasi / Nongkrong (Jam/Hari)", min_value=0.0, max_value=24.0, value=2.0, step=0.5)
             
         submit = st.form_submit_button("Jalankan Prediksi AI")
@@ -67,11 +66,10 @@ if menu == "Beranda & Prediksi":
             
             st.info(f"Kalkulasi Otomatis Sistem — Skor Kecanduan: {addiction:.2f} | Tingkat Stres: {stress}")
             
-            input_df = pd.DataFrame([[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]], 
-                                    columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
+            input_df = pd.DataFrame([[study, gaming, sleep, attendance, assignment, device, sosial, addiction, stress]], 
+                                    columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'assignment_completion', 'device_usage', 'social_activity', 'addiction_score', 'stress_level'])
             
             input_df['stress_level'] = le_stress.transform(input_df['stress_level'])
-            input_df['gaming_genre'] = le_genre.transform(input_df['gaming_genre'])
             input_scaled = scaler.transform(input_df)
             
             hasil_encoded = model.predict(input_scaled)
@@ -85,7 +83,7 @@ if menu == "Beranda & Prediksi":
             else:
                 st.error("Hasil Prediksi: Mahasiswa ini berisiko TIDAK LULUS.")
                 
-                # --- SIMULASI PERBAIKAN OTOMATIS SESUAI KETENTUAN BARU ---
+                # --- SIMULASI PERBAIKAN OTOMATIS SESUAI ATURAN BARU ---
                 st.subheader("Simulasi Perbaikan Otomatis")
                 st.write("Berikut adalah rekomendasi penyesuaian berdasarkan batas standar:")
                 
@@ -95,6 +93,7 @@ if menu == "Beranda & Prediksi":
                 sim_sleep = sleep
                 sim_sosial = sosial
                 sim_attendance = attendance
+                sim_assignment = assignment
                 
                 rekomendasi_list = []
                 
@@ -122,7 +121,6 @@ if menu == "Beranda & Prediksi":
                     sim_device = 10.0
                     rekomendasi_list.append(f"Batasi penggunaan gadget maksimal menjadi **10.0 jam/hari** (turun -{selisih:.1f} jam)")
                 
-                # Pastikan device tidak lebih kecil dari gaming setelah disesuaikan
                 if sim_device < sim_gaming:
                     sim_device = sim_gaming
                 
@@ -130,8 +128,13 @@ if menu == "Beranda & Prediksi":
                 if sim_attendance < 75.0:
                     sim_attendance = 75.0
                     rekomendasi_list.append("Tingkatkan kehadiran kuliah minimal menjadi **75%**")
+                
+                # 6. Cek pengumpulan tugas minimal 75%
+                if sim_assignment < 75.0:
+                    sim_assignment = 75.0
+                    rekomendasi_list.append("Tingkatkan kepatuhan pengumpulan tugas minimal menjadi **75%**")
 
-                # 6. Validasi total waktu harian agar tidak > 24 jam
+                # 7. Validasi total waktu harian agar tidak > 24 jam
                 total_waktu = sim_study + sim_gaming + sim_sleep + sim_sosial
                 if total_waktu > 24.0:
                     kelebihan = total_waktu - 24.0
@@ -142,7 +145,6 @@ if menu == "Beranda & Prediksi":
                         sim_sosial = 0.0
                         rekomendasi_list.append("Sesuaikan ulang alokasi waktu harian agar totalnya tidak melebihi 24 jam")
 
-                # Ambil maksimal 3 rekomendasi utama agar rapi
                 rekomendasi_final = rekomendasi_list[:3]
 
                 if rekomendasi_final:
@@ -162,15 +164,20 @@ elif menu == "Informasi & Metodologi":
     st.info("""
     - Algoritma Klasifikasi: Random Forest Classifier (n_estimators=100).
     - Pra-pemrosesan Data: StandardScaler untuk normalisasi angka dan LabelEncoder untuk kategori teks.
-    - Variabel Penentu: Berdasarkan Feature Importance, jam belajar dan kehadiran memegang pengaruh terbesar.
+    - Variabel Penentu: Jam belajar, kehadiran, dan kepatuhan pengumpulan tugas memegang pengaruh terbesar terhadap kelulusan.
     """)
     
     st.subheader("Evaluasi Performa Model")
     df = pd.read_csv('Gaming_Academic_Performance_updated.csv').dropna()
-    df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x >= 60 else 'Tidak Lulus')
-    X = df[['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level']].copy()
+    if 'assignment_completion' not in df.columns:
+        df['assignment_completion'] = 75.0
+    
+    df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x == 'Lulus' or (isinstance(x, (int, float)) and x >= 60) else 'Tidak Lulus')
+    if 'grades' in df.columns and df['grades'].dtype == 'object':
+        df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if str(x).lower() in ['lulus', 'pass', 'b', 'a'] else 'Tidak Lulus')
+
+    X = df[['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'assignment_completion', 'device_usage', 'social_activity', 'addiction_score', 'stress_level']].copy()
     X['stress_level'] = le_stress.transform(X['stress_level'])
-    X['gaming_genre'] = le_genre.transform(X['gaming_genre'])
     y = le_target.transform(df['status_lulus'])
     
     _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
