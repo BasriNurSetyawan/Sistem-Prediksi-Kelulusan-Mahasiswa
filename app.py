@@ -73,15 +73,18 @@ st.subheader("Prediksi Kelulusan Mahasiswa")
 
 with st.form("form_prediksi"):
 
-    study = st.text_input("Lama Belajar (Jam/Hari)", "5")
-    gaming = st.text_input("Lama Main Game (Jam/Hari)", "4")
-    sleep = st.text_input("Lama Tidur (Jam/Hari)", "6")
-    attendance = st.text_input("Kehadiran (%)", "80")
-    device = st.text_input("Penggunaan Gadget (Jam/Hari)", "7")
-    sosial = st.text_input("Waktu Sosialisasi (Jam/Hari)", "2")
-    genre = st.text_input("Genre Game (FPS/RPG/Casual)", "FPS")
+study = st.text_input("Lama Belajar (Jam/Hari)", "5")
+gaming = st.text_input("Lama Main Game (Jam/Hari)", "4")
+sleep = st.text_input("Lama Tidur (Jam/Hari)", "6")
+attendance = st.text_input("Kehadiran (%)", "80")
+device = st.text_input("Penggunaan Gadget (Jam/Hari)", "7")
+sosial = st.text_input("Waktu Sosialisasi (Jam/Hari)", "2")
+genre = st.selectbox(
+    "Genre Game",
+    ["FPS", "RPG", "Casual"]
+)
 
-    submit = st.form_submit_button("Prediksi")
+submit = st.form_submit_button("Prediksi")
 
 if submit:
 
