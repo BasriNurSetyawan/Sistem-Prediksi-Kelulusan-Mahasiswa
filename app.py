@@ -45,7 +45,7 @@ if menu == "Beranda & Prediksi":
             
             kategori_aktivitas = st.selectbox("Fokus Utama Harian", ['Akademik & Tugas', 'Gaming Kompetition', 'Seimbang / Santai'])
             
-        submit = st.form_submit_button("🚀 Jalankan Prediksi AI")
+        submit = st.form_submit_button("Jalankan Prediksi AI")
 
     if submit:
         if (study + gaming + sleep + sosial) > 24:
