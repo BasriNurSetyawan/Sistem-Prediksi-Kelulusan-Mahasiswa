@@ -79,21 +79,32 @@ if menu == "Beranda & Prediksi":
             else:
                 st.error("Hasil Prediksi: Mahasiswa ini berisiko TIDAK LULUS.")
                 
+                # --- SIMULASI PERBAIKAN (Diperbarui agar lebih akurat) ---
                 st.subheader("Simulasi Perbaikan Otomatis")
-                st.write("Berikut adalah rekomendasi penyesuaian waktu agar status akademik berubah menjadi **Lulus**:")
+                st.write("Berikut adalah rekomendasi penyesuaian agar status akademik berubah menjadi **Lulus**:")
                 
                 sim_study = study
                 sim_gaming = gaming
                 sim_device = device
+                sim_attendance = attendance
                 sim_hasil = hasil
+                
                 tambah_belajar = 0.0
                 kurang_gaming = 0.0
+                tambah_kehadiran = 0.0
                 
-                while sim_hasil == "Tidak Lulus" and (tambah_belajar + kurang_gaming) < 10:
-                    if sim_study < 8.0:
+                # Loop simulasi mencari solusi perbaikan
+                while sim_hasil == "Tidak Lulus" and (tambah_belajar + kurang_gaming + tambah_kehadiran) < 30:
+                    # Prioritas 1: Perbaiki kehadiran jika di bawah 75%
+                    if sim_attendance < 75.0:
+                        sim_attendance = min(sim_attendance + 10.0, 85.0)
+                        tambah_kehadiran += 10.0
+                    # Prioritas 2: Tambah jam belajar jika kurang dari 6 jam
+                    elif sim_study < 7.0:
                         sim_study += 0.5
                         tambah_belajar += 0.5
-                    elif sim_gaming > 1.0:
+                    # Prioritas 3: Kurangi jam game jika berlebihan
+                    elif sim_gaming > 2.0:
                         sim_gaming -= 0.5
                         sim_device = max(sim_device - 0.5, sim_gaming)
                         kurang_gaming += 0.5
@@ -108,7 +119,7 @@ if menu == "Beranda & Prediksi":
                         sim_stress = 'Medium'
                         
                     sim_addiction = -0.0024 + (1.4820 * sim_gaming) + (0.5101 * sim_device)
-                    sim_df = pd.DataFrame([[sim_study, sim_gaming, sleep, attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
+                    sim_df = pd.DataFrame([[sim_study, sim_gaming, sleep, sim_attendance, sim_device, sosial, genre, sim_addiction, sim_stress]], 
                                             columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
                     sim_df['stress_level'] = le_stress.transform(sim_df['stress_level'])
                     sim_df['gaming_genre'] = le_genre.transform(sim_df['gaming_genre'])
@@ -116,18 +127,21 @@ if menu == "Beranda & Prediksi":
                     sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
 
                 if sim_hasil == "Lulus":
-                    st.warning(f"""
-                    * Tambah jam belajar harian sebanyak **+{tambah_belajar} jam** (menjadi {sim_study} jam/hari).
-                    * Kurangi durasi main game sebanyak **-{kurang_gaming} jam** (menjadi {sim_gaming} jam/hari).
-                    """)
+                    pesan_saran = "* Rekomendasi penyesuaian dari sistem:\n"
+                    if tambah_kehadiran > 0:
+                        pesan_saran += f"  - Tingkatkan kehadiran kuliah sebesar **+{tambah_kehadiran}%** (menjadi {sim_attendance}%)\n"
+                    if tambah_belajar > 0:
+                        pesan_saran += f"  - Tambah jam belajar harian sebanyak **+{tambah_belajar} jam** (menjadi {sim_study} jam/hari)\n"
+                    if kurang_gaming > 0:
+                        pesan_saran += f"  - Kurangi durasi main game sebanyak **-{kurang_gaming} jam** (menjadi {sim_gaming} jam/hari)\n"
+                    st.warning(pesan_saran)
                 else:
-                    st.info("Disarankan untuk meningkatkan kehadiran kuliah secara signifikan dan menyeimbangkan waktu istirahat.")
+                    st.info("Kombinasi kebiasaan saat ini terlalu berisiko. Mahasiswa perlu meningkatkan kehadiran kuliah secara drastis dan merombak total manajemen waktu harian.")
 
 elif menu == "Informasi & Metodologi":
     st.title("Informasi Sistem & Metodologi Penelitian")
     st.write("Halaman ini merangkum arsitektur di balik layar, algoritma yang digunakan, serta evaluasi performa model.")
     
-    st.markdown("---")
     st.subheader("Arsitektur Algoritma")
     st.info("""
     * Algoritma Klasifikasi: Random Forest Classifier (n_estimators=100).
