@@ -4,175 +4,151 @@ import joblib
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-st.set_page_config(page_title="Prediksi Kelulusan", layout="centered")
+st.set_page_config(page_title="Sistem Prediksi Kelulusan Mahasiswa", layout="wide")
 
-st.title("Sistem Prediksi Kelulusan Mahasiswa")
+@st.cache_resource
+def load_assets():
+    model = joblib.load('model_akademik.pkl')
+    scaler = joblib.load('scaler_akademik.pkl')
+    le_stress = joblib.load('le_stress.pkl')
+    le_genre = joblib.load('le_genre.pkl')
+    le_target = joblib.load('le_target.pkl')
+    return model, scaler, le_stress, le_genre, le_target
 
-st.markdown("""
-### Metode & Algoritma Sistem
-* **Metode Utama:** *Supervised Machine Learning* (Klasifikasi)
-* **Algoritma Model:** *Random Forest Classifier* (N-Estimators: 100)
-* **Pra-pemrosesan Data:** *Standard Scaler* untuk normalisasi data waktu & *Label Encoder* untuk kategori teks.
-* **Otomasi Fitur Latar Belakang:** Perhitungan otomatis metrik *Stress Level* berbasis aturan bersyarat (Logika IF-ELSE) dan *Addiction Score* menggunakan Regresi Linier *Multi-variabel*.
-""")
-st.divider()
+model, scaler, le_stress, le_genre, le_target = load_assets()
 
-model = joblib.load('model_akademik.pkl')
-scaler = joblib.load('scaler_akademik.pkl')
-le_stress = joblib.load('le_stress.pkl')
-le_genre = joblib.load('le_genre.pkl')
-le_target = joblib.load('le_target.pkl')
+menu = st.sidebar.selectbox("Pilih Halaman:", [
+    "Beranda & Prediksi", 
+    "Informasi & Metodologi", 
+    "Saran Penggunaan Gadget"
+])
 
-df = pd.read_csv('Gaming_Academic_Performance_updated.csv').dropna()
-df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x >= 60 else 'Tidak Lulus')
+if menu == "Beranda & Prediksi":
+    st.title("🎓 Sistem Prediksi Kelulusan Mahasiswa Berbasis AI")
+    st.write("Silakan masukkan data kebiasaan harian mahasiswa pada formulir di bawah ini untuk melihat estimasi status kelulusannya.")
+    
+    with st.form("form_prediksi"):
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            study = st.number_input("Lama Belajar (Jam/Hari)", min_value=0.0, max_value=24.0, value=5.0, step=0.5)
+            gaming = st.number_input("Lama Main Game (Jam/Hari)", min_value=0.0, max_value=24.0, value=3.0, step=0.5)
+            
+            genre = st.selectbox("Genre Game Favorit", ['FPS', 'RPG', 'Casual'])
+            
+            attendance = st.number_input("Tingkat Kehadiran Kuliah (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
+            
+        with c2:
+            sleep = st.number_input("Lama Tidur (Jam/Hari)", min_value=0.0, max_value=24.0, value=7.0, step=0.5)
+            device = st.number_input("Total Penggunaan Gadget (Jam/Hari)", min_value=0.0, max_value=24.0, value=6.0, step=0.5)
+            sosial = st.number_input("Waktu Sosialisasi / Nongkrong (Jam/Hari)", min_value=0.0, max_value=24.0, value=2.0, step=0.5)
+            
+            kategori_aktivitas = st.selectbox("Fokus Utama Harian", ['Akademik & Tugas', 'Gaming Kompetition', 'Seimbang / Santai'])
+            
+        submit = st.form_submit_button("🚀 Jalankan Prediksi AI")
 
-X = df[['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level']].copy()
-X['stress_level'] = le_stress.transform(X['stress_level'])
-X['gaming_genre'] = le_genre.transform(X['gaming_genre'])
-y = le_target.transform(df['status_lulus'])
+    if submit:
+        if (study + gaming + sleep + sosial) > 24:
+            st.error("⚠️ Total waktu harian (belajar, nge-game, tidur, nongkrong) tidak boleh lebih dari 24 jam!")
+        elif device < gaming:
+            st.error("⚠️ Total penggunaan gadget tidak boleh lebih kecil dari durasi main game!")
+        else:
+            # Logika otomatisasi background
+            if study > 7 and sleep <= 6:
+                stress = 'High'
+            elif gaming > 5:
+                stress = 'Low'
+            else:
+                stress = 'Medium'
+                
+            addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
+            
+            st.info(f"🔍 Kalkulasi Otomatis Sistem — Skor Kecanduan: **{addiction:.2f}** | Tingkat Stres: **{stress}**")
+            
+            input_df = pd.DataFrame([[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]], 
+                                    columns=['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level'])
+            
+            input_df['stress_level'] = le_stress.transform(input_df['stress_level'])
+            input_df['gaming_genre'] = le_genre.transform(input_df['gaming_genre'])
+            input_scaled = scaler.transform(input_df)
+            
+            hasil_encoded = model.predict(input_scaled)
+            hasil = le_target.inverse_transform(hasil_encoded)[0]
+            
+            st.divider()
+            if hasil == "Lulus":
+                st.success("🎉 **Hasil Prediksi:** Mahasiswa ini memiliki probabilitas tinggi untuk **LULUS** tepat waktu.")
+            else:
+                st.error("🚨 **Hasil Prediksi:** Mahasiswa ini berisiko **TIDAK LULUS**. Perlu evaluasi manajemen waktu.")
 
-_, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-X_test_scaled = scaler.transform(X_test)
-y_pred = model.predict(X_test_scaled)
-
-st.subheader("Hasil Evaluasi Model")
-acc = accuracy_score(y_test, y_pred)
-prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-rec = recall_score(y_test, y_pred, average='weighted', zero_division=0)
-f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Accuracy", f"{acc*100:.2f}%")
-col2.metric("Precision", f"{prec*100:.2f}%")
-col3.metric("Recall", f"{rec*100:.2f}%")
-col4.metric("F1 Score", f"{f1*100:.2f}%")
-
-st.write("**Grafik Hasil Prediksi (Confusion Matrix):**")
-cm = confusion_matrix(y_test, y_pred)
-label_0 = le_target.classes_[0]
-label_1 = le_target.classes_[1]
-
-data_cm = {
-    'Kategori': [
-        f'Tepat: Aktual {label_0}, Prediksi {label_0}',
-        f'Meleset: Aktual {label_0}, Prediksi {label_1}',
-        f'Meleset: Aktual {label_1}, Prediksi {label_0}',
-        f'Tepat: Aktual {label_1}, Prediksi {label_1}'
-    ],
-    'Jumlah Mahasiswa': cm.flatten()
-}
-df_grafik_cm = pd.DataFrame(data_cm).set_index('Kategori')
-st.bar_chart(df_grafik_cm)
-
-st.divider()
-
-st.subheader("Coba Prediksi Kelulusan")
-st.write("Masukkan metrik rutinitas harian mahasiswa di bawah ini:")
-
-st.subheader("Prediksi Kelulusan Mahasiswa")
-
-with st.form("form_prediksi"):
-
-study = st.text_input("Lama Belajar (Jam/Hari)", "5")
-gaming = st.text_input("Lama Main Game (Jam/Hari)", "4")
-sleep = st.text_input("Lama Tidur (Jam/Hari)", "6")
-attendance = st.text_input("Kehadiran (%)", "80")
-device = st.text_input("Penggunaan Gadget (Jam/Hari)", "7")
-sosial = st.text_input("Waktu Sosialisasi (Jam/Hari)", "2")
-genre = st.selectbox(
-    "Genre Game",
-    ["FPS", "RPG", "Casual"]
-)
-
-submit = st.form_submit_button("Prediksi")
-
-if submit:
-
-    try:
-        study = float(study)
-        gaming = float(gaming)
-        sleep = float(sleep)
-        attendance = float(attendance)
-        device = float(device)
-        sosial = float(sosial)
-    except ValueError:
-        st.error("Semua input angka harus berupa angka.")
-        st.stop()
-
-    genre = genre.strip().title()
-
-    if genre not in ["FPS", "RPG", "Casual"]:
-        st.error("Genre hanya boleh FPS, RPG, atau Casual.")
-        st.stop()
-
-    if study < 0 or study > 24:
-        st.error("Jam belajar harus antara 0-24.")
-        st.stop()
-
-    if gaming < 0 or gaming > 24:
-        st.error("Jam bermain harus antara 0-24.")
-        st.stop()
-
-    if sleep < 0 or sleep > 24:
-        st.error("Jam tidur harus antara 0-24.")
-        st.stop()
-
-    if device < 0 or device > 24:
-        st.error("Jam penggunaan gadget harus antara 0-24.")
-        st.stop()
-
-    if sosial < 0 or sosial > 24:
-        st.error("Jam sosialisasi harus antara 0-24.")
-        st.stop()
-
-    if attendance < 0 or attendance > 100:
-        st.error("Kehadiran harus antara 0-100%.")
-        st.stop()
-
-    if study + gaming + sleep + sosial > 24:
-        st.error("Total jam belajar, bermain, tidur, dan sosialisasi tidak boleh lebih dari 24 jam.")
-        st.stop()
-
-    if device < gaming:
-        st.error("Jam penggunaan gadget tidak boleh lebih kecil dari jam bermain game.")
-        st.stop()
-
-    if study > 7 and sleep <= 6:
-        stress = "High"
-    elif gaming > 5:
-        stress = "Low"
-    else:
-        stress = "Medium"
-
-    addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
-
-    st.info(f"Skor Kecanduan : {addiction:.2f}")
-    st.info(f"Tingkat Stress : {stress}")
-
-    input_df = pd.DataFrame(
-        [[study, gaming, sleep, attendance, device, sosial, genre, addiction, stress]],
-        columns=[
-            "study_hours",
-            "gaming_hours",
-            "sleep_hours",
-            "attendance",
-            "device_usage",
-            "social_activity",
-            "gaming_genre",
-            "addiction_score",
-            "stress_level",
+elif menu == "Informasi & Metodologi":
+    st.title("📚 Informasi Sistem & Metodologi Penelitian")
+    st.write("Halaman ini merangkum arsitektur di balik layar, algoritma yang digunakan, serta evaluasi performa model.")
+    
+    st.subheader("Arsitektur Algoritma")
+    st.info("""
+    * **Algoritma Klasifikasi:** Menggunakan *Random Forest Classifier* dengan total 100 *Decision Trees* (`n_estimators=100`).
+    * **Pra-pemrosesan Data:** 
+      * `StandardScaler` untuk normalisasi rentang angka (durasi jam, kehadiran).
+      * `LabelEncoder` untuk mengubah data kategori teks (Genre Game, Tingkat Stres) menjadi numerik.
+    * **Variabel Penentu Utama:** Berdasarkan uji *Feature Importance*, jam belajar memegang pengaruh terbesar (sekitar 43%), disusul oleh durasi gaming dan kualitas tidur.
+    """)
+    
+    st.subheader("Evaluasi Performa Model (Testing Data)")
+    
+    # Load data evaluasi untuk ditampilkan metriknya
+    df = pd.read_csv('Gaming_Academic_Performance_updated.csv').dropna()
+    df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x >= 60 else 'Tidak Lulus')
+    X = df[['study_hours', 'gaming_hours', 'sleep_hours', 'attendance', 'device_usage', 'social_activity', 'gaming_genre', 'addiction_score', 'stress_level']].copy()
+    X['stress_level'] = le_stress.transform(X['stress_level'])
+    X['gaming_genre'] = le_genre.transform(X['gaming_genre'])
+    y = le_target.transform(df['status_lulus'])
+    
+    _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_test_scaled = scaler.transform(X_test)
+    y_pred = model.predict(X_test_scaled)
+    
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+    rec = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Akurasi Model", f"{acc*100:.2f}%")
+    m2.metric("Precision Score", f"{prec*100:.2f}%")
+    m3.metric("Recall Score", f"{rec*100:.2f}%")
+    
+    st.write("**Visualisasi Confusion Matrix:**")
+    cm = confusion_matrix(y_test, y_pred)
+    label_0, label_1 = le_target.classes_[0], le_target.classes_[1]
+    df_cm = pd.DataFrame({
+        'Kategori Evaluasi': [
+            f'Aktual {label_0} (Prediksi {label_0})', f'Aktual {label_0} (Prediksi {label_1})',
+            f'Aktual {label_1} (Prediksi {label_0})', f'Aktual {label_1} (Prediksi {label_1})'
         ],
-    )
+        'Jumlah Sampel': cm.flatten()
+    }).set_index('Kategori Evaluasi')
+    st.bar_chart(df_cm)
 
-    input_df["stress_level"] = le_stress.transform(input_df["stress_level"])
-    input_df["gaming_genre"] = le_genre.transform(input_df["gaming_genre"])
-
-    input_scaled = scaler.transform(input_df)
-
-    hasil_encoded = model.predict(input_scaled)
-    hasil = le_target.inverse_transform(hasil_encoded)[0]
-
-    if hasil == "Lulus":
-        st.success("Hasil Prediksi : Mahasiswa Berpotensi LULUS")
-    else:
-        st.error("Hasil Prediksi : Mahasiswa Berpotensi TIDAK LULUS")
+elif menu == "Saran Penggunaan Gadget":
+    st.title("💡 Panduan & Saran Manajemen Gadget Bagi Mahasiswa")
+    st.write("Rekomendasi taktis berbasis analisis data untuk menyeimbangkan hobi gaming, penggunaan gadget, dan performa akademik.")
+    
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        st.subheader("🛑 Risiko Durasi Gadget Berlebih")
+        st.warning("""
+        * **Penurunan Jam Tidur:** Gadget yang digunakan larut malam mengganggu produksi melatonin, berakibat pada penurunan fokus kuliah keesokan harinya.
+        * **Lonjakan Skor Kecanduan:** Berdasarkan rumus regresi sistem, setiap penambahan durasi gaming dan total layar secara linear mendongkrak tingkat risiko adiksi.
+        * **Distraksi Akademik:** Waktu belajar yang terpotong untuk aktivitas digital sekunder berbanding lurus dengan penurunan indeks prestasi.
+        """)
+        
+    with col_b:
+        st.subheader("✅ Tips & Solusi Bijak")
+        st.success("""
+        * **Terapkan Batasan Waktu (Time Boxing):** Alokasikan waktu maksimal gaming (misal: 2 jam sehari setelah tugas beres).
+        * **Prioritaskan Porsi Belajar:** Pastikan rasio jam belajar minimal 2 kali lipat dari durasi hiburan harian.
+        * **Jeda Istirahat Layar:** Gunakan metode *20-20-20* (tiap 20 menit menatap layar, istirahatkan mata sejenak melihat objek sejauh 20 kaki) untuk menjaga kesehatan mata.
+        """)
+        
+    st.info("📌 **Kesimpulan:** Main game atau menggunakan gadget tidak dilarang, asalkan diimbangi dengan tingkat kehadiran yang tinggi dan waktu istirahat yang cukup agar target kelulusan tetap tercapai.")
