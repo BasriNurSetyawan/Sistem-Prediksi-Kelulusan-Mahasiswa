@@ -63,10 +63,6 @@ if menu == "🏠 Home":
                    "2. **Proses AI**: Data dianalisis menggunakan algoritma Random Forest.\n"
                    "3. **Prediksi**: Output berupa probabilitas lulus/tidak lulus.\n"
                    "4. **Rekomendasi**: Sistem memberikan saran korektif.")
-        
-    st.write("Pipeline Machine Learning")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Machine_learning_pipeline.svg/1024px-Machine_learning_pipeline.svg.png", use_container_width=True)
-    st.caption("Ilustrasi Alur Machine Learning standar.")
 
 
 elif menu == "📊 Dataset":
