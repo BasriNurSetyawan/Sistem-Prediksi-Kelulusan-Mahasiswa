@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 
 st.set_page_config(page_title="Sistem Prediksi Kelulusan Mahasiswa", layout="wide")
 
+# --- LOAD KOMPONEN AI ---
 @st.cache_resource
 def load_assets():
     model = joblib.load('model_akademik.pkl')
@@ -17,6 +18,7 @@ def load_assets():
 
 model, scaler, le_stress, le_genre, le_target = load_assets()
 
+# --- NAVBAR DI KIRI ATAS (SIDEBAR) ---
 st.sidebar.title("Menu Navigasi")
 menu = st.sidebar.selectbox("Pilih Halaman:", [
     "Beranda & Prediksi", 
@@ -24,9 +26,11 @@ menu = st.sidebar.selectbox("Pilih Halaman:", [
     "Saran Penggunaan Gadget"
 ])
 
-
+# ==========================================
+# HALAMAN 1: BERANDA & PREDIKSI UTAMA
+# ==========================================
 if menu == "Beranda & Prediksi":
-    st.title("Sistem Prediksi Kelulusan Mahasiswa")
+    st.title("Beranda dan Prediksi Kelulusan Mahasiswa")
     st.write("Silakan masukkan data kebiasaan harian mahasiswa pada formulir di bawah ini untuk melihat estimasi status kelulusannya.")
     
     with st.form("form_prediksi"):
@@ -51,6 +55,7 @@ if menu == "Beranda & Prediksi":
         elif device < gaming:
             st.error("Total penggunaan gadget tidak boleh lebih kecil dari durasi main game!")
         else:
+            # Kalkulasi otomatis background
             if study > 7 and sleep <= 6:
                 stress = 'High'
             elif gaming > 5:
@@ -74,14 +79,15 @@ if menu == "Beranda & Prediksi":
             
             st.divider()
             
+            # TAMPILAN HASIL UTAMA
             if hasil == "Lulus":
                 st.success("Hasil Prediksi: Mahasiswa ini memiliki probabilitas tinggi untuk LULUS tepat waktu.")
             else:
                 st.error("Hasil Prediksi: Mahasiswa ini berisiko TIDAK LULUS.")
                 
-                # --- SIMULASI PERBAIKAN (Diperbarui agar lebih akurat) ---
+                # --- SIMULASI PERBAIKAN OTOMATIS ---
                 st.subheader("Simulasi Perbaikan Otomatis")
-                st.write("Berikut adalah rekomendasi penyesuaian agar status akademik berubah menjadi **Lulus**:")
+                st.write("Berikut adalah rekomendasi penyesuaian agar status akademik berubah menjadi Lulus:")
                 
                 sim_study = study
                 sim_gaming = gaming
@@ -93,17 +99,13 @@ if menu == "Beranda & Prediksi":
                 kurang_gaming = 0.0
                 tambah_kehadiran = 0.0
                 
-                # Loop simulasi mencari solusi perbaikan
                 while sim_hasil == "Tidak Lulus" and (tambah_belajar + kurang_gaming + tambah_kehadiran) < 30:
-                    # Prioritas 1: Perbaiki kehadiran jika di bawah 75%
                     if sim_attendance < 75.0:
                         sim_attendance = min(sim_attendance + 10.0, 85.0)
                         tambah_kehadiran += 10.0
-                    # Prioritas 2: Tambah jam belajar jika kurang dari 6 jam
                     elif sim_study < 7.0:
                         sim_study += 0.5
                         tambah_belajar += 0.5
-                    # Prioritas 3: Kurangi jam game jika berlebihan
                     elif sim_gaming > 2.0:
                         sim_gaming -= 0.5
                         sim_device = max(sim_device - 0.5, sim_gaming)
@@ -127,26 +129,30 @@ if menu == "Beranda & Prediksi":
                     sim_hasil = le_target.inverse_transform(model.predict(sim_scaled))[0]
 
                 if sim_hasil == "Lulus":
-                    pesan_saran = "* Rekomendasi penyesuaian dari sistem:\n"
+                    pesan_saran = "Rekomendasi penyesuaian dari sistem:\n"
                     if tambah_kehadiran > 0:
-                        pesan_saran += f"  - Tingkatkan kehadiran kuliah sebesar **+{tambah_kehadiran}%** (menjadi {sim_attendance}%)\n"
+                        pesan_saran += f"- Tingkatkan kehadiran kuliah sebesar +{tambah_kehadiran}% (menjadi {sim_attendance}%)\n"
                     if tambah_belajar > 0:
-                        pesan_saran += f"  - Tambah jam belajar harian sebanyak **+{tambah_belajar} jam** (menjadi {sim_study} jam/hari)\n"
+                        pesan_saran += f"- Tambah jam belajar harian sebanyak +{tambah_belajar} jam (menjadi {sim_study} jam/hari)\n"
                     if kurang_gaming > 0:
-                        pesan_saran += f"  - Kurangi durasi main game sebanyak **-{kurang_gaming} jam** (menjadi {sim_gaming} jam/hari)\n"
+                        pesan_saran += f"- Kurangi durasi main game sebanyak -{kurang_gaming} jam (menjadi {sim_gaming} jam/hari)\n"
                     st.warning(pesan_saran)
                 else:
                     st.info("Kombinasi kebiasaan saat ini terlalu berisiko. Mahasiswa perlu meningkatkan kehadiran kuliah secara drastis dan merombak total manajemen waktu harian.")
 
+# ==========================================
+# HALAMAN 2: INFORMASI & METODOLOGI
+# ==========================================
 elif menu == "Informasi & Metodologi":
-    st.title("Informasi Sistem & Metodologi Penelitian")
+    st.title("Informasi Sistem dan Metodologi Penelitian")
     st.write("Halaman ini merangkum arsitektur di balik layar, algoritma yang digunakan, serta evaluasi performa model.")
     
+    st.markdown("---")
     st.subheader("Arsitektur Algoritma")
     st.info("""
-    * Algoritma Klasifikasi: Random Forest Classifier (n_estimators=100).
-    * Pra-pemrosesan Data: StandardScaler untuk normalisasi angka dan LabelEncoder untuk kategori teks.
-    * Variabel Penentu: Berdasarkan Feature Importance, jam belajar memegang pengaruh terbesar (sekitar 43%).
+    - Algoritma Klasifikasi: Random Forest Classifier (n_estimators=100).
+    - Pra-pemrosesan Data: StandardScaler untuk normalisasi angka dan LabelEncoder untuk kategori teks.
+    - Variabel Penentu: Berdasarkan Feature Importance, jam belajar dan kehadiran memegang pengaruh terbesar.
     """)
     
     st.subheader("Evaluasi Performa Model")
@@ -173,8 +179,11 @@ elif menu == "Informasi & Metodologi":
     df_cm = pd.DataFrame({'Jumlah Sampel': cm.flatten()}).set_index(pd.Index(['True Neg', 'False Pos', 'False Neg', 'True Pos']))
     st.bar_chart(df_cm)
 
+# ==========================================
+# HALAMAN 3: SARAN PENGGUNAAN GADGET
+# ==========================================
 elif menu == "Saran Penggunaan Gadget":
-    st.title("Panduan & Saran Manajemen Gadget Bagi Mahasiswa")
+    st.title("Panduan dan Saran Manajemen Gadget Bagi Mahasiswa")
     st.write("Rekomendasi taktis berbasis analisis data untuk menyeimbangkan hobi gaming dan performa akademik.")
     
     st.markdown("---")
@@ -183,5 +192,5 @@ elif menu == "Saran Penggunaan Gadget":
         st.subheader("Risiko Durasi Gadget Berlebih")
         st.write("Penggunaan gadget dan gaming tanpa kontrol berpotensi menurunkan jam tidur, mengganggu fokus belajar, serta meningkatkan skor kecanduan.")
     with c2:
-        st.subheader("Tips & Solusi Bijak")
+        st.subheader("Tips dan Solusi Bijak")
         st.write("Terapkan manajemen waktu harian, utamakan jam belajar minimal dua kali lipat dari durasi hiburan, dan jaga waktu istirahat yang cukup.")
