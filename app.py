@@ -6,11 +6,10 @@ from sklearn.model_selection import train_test_split
 
 st.set_page_config(page_title="Prediksi Kelulusan", layout="centered")
 
-# --- BAGIAN ATAS: INFORMASI METODE & ALGORITMA ---
-st.title("🎓 Sistem Prediksi Kelulusan Mahasiswa")
+st.title("Sistem Prediksi Kelulusan Mahasiswa")
 
 st.markdown("""
-### 🧠 Metode & Algoritma Sistem
+### Metode & Algoritma Sistem
 * **Metode Utama:** *Supervised Machine Learning* (Klasifikasi)
 * **Algoritma Model:** *Random Forest Classifier* (N-Estimators: 100)
 * **Pra-pemrosesan Data:** *Standard Scaler* untuk normalisasi data waktu & *Label Encoder* untuk kategori teks.
@@ -18,14 +17,12 @@ st.markdown("""
 """)
 st.divider()
 
-# Load komponen AI
 model = joblib.load('model_akademik.pkl')
 scaler = joblib.load('scaler_akademik.pkl')
 le_stress = joblib.load('le_stress.pkl')
 le_genre = joblib.load('le_genre.pkl')
 le_target = joblib.load('le_target.pkl')
 
-# Evaluasi background
 df = pd.read_csv('Gaming_Academic_Performance_updated.csv').dropna()
 df['status_lulus'] = df['grades'].apply(lambda x: 'Lulus' if x >= 60 else 'Tidak Lulus')
 
@@ -38,7 +35,7 @@ _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 X_test_scaled = scaler.transform(X_test)
 y_pred = model.predict(X_test_scaled)
 
-st.subheader("📊 Hasil Evaluasi Model")
+st.subheader("Hasil Evaluasi Model")
 acc = accuracy_score(y_test, y_pred)
 prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
 rec = recall_score(y_test, y_pred, average='weighted', zero_division=0)
@@ -69,7 +66,6 @@ st.bar_chart(df_grafik_cm)
 
 st.divider()
 
-# --- FORMULIR INPUT ---
 st.subheader("🎮 Coba Prediksi Kelulusan")
 st.write("Masukkan metrik rutinitas harian mahasiswa di bawah ini:")
 
@@ -95,15 +91,13 @@ if submit:
     elif device < gaming:
         st.error("Total waktu pegang gadget tidak boleh lebih kecil dari waktu main game.")
     else:
-        # Kalkulasi background sesuai logika asli dataset
         if study > 7 and sleep <= 6:
             stress = 'High'
         elif gaming > 5:
             stress = 'Low'
         else:
             stress = 'Medium'
-            
-        # Rumus regresi baru setelah ditambah variabel device_usage
+
         addiction = -0.0024 + (1.4820 * gaming) + (0.5101 * device)
         
         st.info(f"Sistem mengkalkulasi otomatis: Skor Kecanduan = {addiction:.2f} | Tingkat Stres = {stress}")
